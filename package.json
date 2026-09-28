@@ -1,0 +1,61 @@
+{
+  "name": "handbell-manager",
+  "productName": "Handbell Manager",
+  "version": "1.0.0",
+  "description": "Handbell part-assignment tool — upload a MuseScore file, get conflict-free player assignments",
+  "main": ".vite/build/main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron-forge start",
+    "package": "electron-forge package",
+    "make": "electron-forge make",
+    "publish": "electron-forge publish",
+    "lint": "eslint --ext .ts,.tsx .",
+    "test": "node test/core.test.mjs",
+    "postinstall": "patch-package"
+  },
+  "keywords": [],
+  "author": "Josh Wright",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JshWright/handbell-manager.git"
+  },
+  "homepage": "https://github.com/JshWright/handbell-manager#readme",
+  "bugs": {
+    "url": "https://github.com/JshWright/handbell-manager/issues"
+  },
+  "devDependencies": {
+    "@electron-forge/cli": "^7.11.2",
+    "@electron-forge/maker-deb": "^7.11.2",
+    "@electron-forge/maker-dmg": "^7.11.2",
+    "@electron-forge/maker-rpm": "^7.11.2",
+    "@electron-forge/maker-squirrel": "^7.11.2",
+    "@electron-forge/maker-zip": "^7.11.2",
+    "@electron-forge/plugin-auto-unpack-natives": "^7.11.2",
+    "@electron-forge/plugin-fuses": "^7.11.2",
+    "@electron-forge/plugin-vite": "^7.11.2",
+    "@electron/fuses": "^1.8.0",
+    "@types/electron-squirrel-startup": "^1.0.2",
+    "@types/node": "^26.2.0",
+    "@typescript-eslint/eslint-plugin": "^5.62.0",
+    "@typescript-eslint/parser": "^5.62.0",
+    "electron": "43.4.1",
+    "esbuild": "^0.28.0",
+    "eslint": "^8.57.1",
+    "eslint-plugin-import": "^2.32.0",
+    "patch-package": "^8.0.1",
+    "typescript": "^5.9.3",
+    "vite": "^5.4.21"
+  },
+  "dependencies": {
+    "@xmldom/xmldom": "^0.9.11",
+    "electron-squirrel-startup": "^1.0.1",
+    "fflate": "^0.8.3",
+    "pdf-lib": "^1.17.1"
+  },
+  "allowScripts": {
+    "macos-alias@0.2.12": true,
+    "fs-xattr@0.3.1": true
+  }
+}

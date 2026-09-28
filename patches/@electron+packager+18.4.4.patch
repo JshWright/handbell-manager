@@ -1,0 +1,24 @@
+diff --git a/node_modules/@electron/packager/dist/unzip.js b/node_modules/@electron/packager/dist/unzip.js
+index d37e170..ec254d5 100644
+--- a/node_modules/@electron/packager/dist/unzip.js
++++ b/node_modules/@electron/packager/dist/unzip.js
+@@ -1,12 +1,13 @@
+ "use strict";
+-var __importDefault = (this && this.__importDefault) || function (mod) {
+-    return (mod && mod.__esModule) ? mod : { "default": mod };
+-};
+ Object.defineProperty(exports, "__esModule", { value: true });
+ exports.extractElectronZip = void 0;
+-const extract_zip_1 = __importDefault(require("extract-zip"));
++const { spawn } = require('child_process');
+ async function extractElectronZip(zipPath, targetDir) {
+-    await (0, extract_zip_1.default)(zipPath, { dir: targetDir });
++    await new Promise((resolve, reject) => {
++        const proc = spawn('unzip', ['-q', zipPath, '-d', targetDir], { stdio: 'inherit' });
++        proc.on('close', code => code === 0 ? resolve() : reject(new Error(`unzip exited with code ${code}`)));
++        proc.on('error', reject);
++    });
+ }
+ exports.extractElectronZip = extractElectronZip;
+ //# sourceMappingURL=unzip.js.map
+\ No newline at end of file

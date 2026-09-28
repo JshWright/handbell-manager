@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'">
+  <title>Handbell Manager</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ── Toolbar (macOS drag region) ─────────────────────────────────────── -->
+  <header class="toolbar" id="toolbar">
+    <div class="toolbar-title">
+      <svg class="bell-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6a1.4 1.4 0 0 1 1.4 1.4v.7A6.5 6.5 0 0 1 18 11v3.2c0 .9.3 1.7.9 2.4l.7.8a1 1 0 0 1-.75 1.66H5.15a1 1 0 0 1-.75-1.66l.7-.8c.6-.7.9-1.5.9-2.4V11a6.5 6.5 0 0 1 4.6-6.3V4A1.4 1.4 0 0 1 12 2.6Z"/><path d="M9.8 20.2a2.2 2.2 0 0 0 4.4 0Z"/></svg>
+      <span class="toolbar-name" id="toolbar-name">Handbell Manager</span>
+    </div>
+    <div class="toolbar-actions" id="toolbar-actions"></div>
+  </header>
+
+  <!-- ── Empty state ─────────────────────────────────────────────────────── -->
+  <section id="empty" class="empty">
+    <div class="dropzone" id="dropzone">
+      <svg class="dropzone-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6a1.4 1.4 0 0 1 1.4 1.4v.7A6.5 6.5 0 0 1 18 11v3.2c0 .9.3 1.7.9 2.4l.7.8a1 1 0 0 1-.75 1.66H5.15a1 1 0 0 1-.75-1.66l.7-.8c.6-.7.9-1.5.9-2.4V11a6.5 6.5 0 0 1 4.6-6.3V4A1.4 1.4 0 0 1 12 2.6Z"/><path d="M9.8 20.2a2.2 2.2 0 0 0 4.4 0Z"/></svg>
+      <h1>Assign your handbells</h1>
+      <p>Drop a MuseScore <code>.mscz</code> file here, or choose one to begin. You'll get a conflict-free, pitch-balanced assignment you can tune live.</p>
+      <button id="btn-choose" class="primary">Choose file…</button>
+      <p class="micro">Works best on single-instrument scores without repeats or codas.</p>
+      <div id="empty-error" class="banner error hidden"></div>
+    </div>
+  </section>
+
+  <!-- ── Workspace ───────────────────────────────────────────────────────── -->
+  <div id="workspace" class="workspace hidden">
+
+    <!-- Setup rail -->
+    <aside class="sidebar">
+      <div class="scroll">
+
+        <div class="file-chip">
+          <div class="file-meta">
+            <span class="file-name" id="file-name">—</span>
+            <span class="file-sub" id="file-sub"></span>
+          </div>
+          <button id="btn-change" class="ghost">Change</button>
+        </div>
+
+        <section class="control">
+          <label for="n-players">Ringers</label>
+          <div class="stepper">
+            <button type="button" id="players-dec" aria-label="Fewer ringers">−</button>
+            <input type="number" id="n-players" min="1" value="10" inputmode="numeric">
+            <button type="button" id="players-inc" aria-label="More ringers">+</button>
+          </div>
+          <p class="micro" id="players-hint"></p>
+        </section>
+
+        <section class="control">
+          <label for="min-count">Minimum strikes <span class="unit">each</span></label>
+          <input type="number" id="min-count" min="0" placeholder="No minimum">
+          <p class="micro">Guarantee no player falls below this total.</p>
+        </section>
+
+        <section class="control">
+          <label for="min-gap">Minimum gap <span class="unit">beats</span></label>
+          <input type="number" id="min-gap" min="0" step="0.25" placeholder="No minimum">
+          <p class="micro">No player switches bells faster than this.</p>
+        </section>
+
+        <section class="control">
+          <label class="check-label">
+            <input type="checkbox" id="two-hand" checked>
+            Two-hand ringing
+          </label>
+          <p class="micro">Allow two bells per ringer.</p>
+        </section>
+
+        <section class="control">
+          <label>PDF options</label>
+          <div class="check-row">
+            <label class="check-label">
+              <input type="checkbox" id="pdf-color-notes" checked>
+              Color notes
+            </label>
+            <label class="check-label">
+              <input type="checkbox" id="pdf-show-arrows" checked>
+              Arrows (▲)
+            </label>
+            <label class="check-label">
+              <input type="checkbox" id="pdf-bells-used" checked>
+              Bells-used header
+            </label>
+          </div>
+        </section>
+
+        <section class="control bells">
+          <div class="control-head">
+            <label>Bells</label>
+            <span class="pin-count" id="pin-count"></span>
+          </div>
+          <div class="bell-list" id="bell-list"></div>
+        </section>
+
+      </div>
+    </aside>
+
+    <!-- Live assignment -->
+    <main class="results">
+      <div class="stat-strip" id="stat-strip"></div>
+      <div id="results-error" class="banner warn hidden"></div>
+      <div class="player-grid" id="player-grid"></div>
+      <footer class="results-foot">
+        <span class="status" id="status"></span>
+      </footer>
+    </main>
+
+  </div>
+</div>
+
+<script type="module" src="renderer.ts"></script>
+</body>
+</html>
