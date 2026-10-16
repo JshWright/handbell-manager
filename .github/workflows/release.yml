@@ -14,6 +14,11 @@ on:
           - minor
           - major
         default: patch
+      headline:
+        description: Headline for the release notes (optional)
+        type: string
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -83,9 +88,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.version }}
+          HEADLINE: ${{ inputs.headline }}
         run: |
+          NOTES="Unsigned build: on first launch macOS will block the app. Right-click it and choose Open, or approve it under System Settings → Privacy & Security."
+          # GitHub puts this body above the auto-generated "What's Changed" list.
+          if [ -n "${HEADLINE//[[:space:]]/}" ]; then
+            NOTES="## $HEADLINE"$'\n\n'"$NOTES"
+          fi
           gh release create "v$VERSION" out/make/dmg/*/*.dmg \
             --verify-tag \
             --title "Handbell Manager v$VERSION" \
             --generate-notes \
-            --notes "Unsigned build: on first launch macOS will block the app. Right-click it and choose Open, or approve it under System Settings → Privacy & Security."
+            --notes "$NOTES"
