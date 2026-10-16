@@ -60,8 +60,12 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       # The runner is Apple Silicon; Electron cross-packages the Intel build.
+      # One arch per invocation: a combined --arch=arm64,x64 makes both DMGs
+      # concurrently, and they race on the same temp file in out/make.
       - name: Build DMGs
-        run: npm run make -- --arch=arm64,x64
+        run: |
+          npm run make -- --arch=arm64
+          npm run make -- --arch=x64
 
       # Pushed only after a successful build, so a failed build leaves nothing
       # behind. --atomic: either both the commit and the tag land, or neither.
