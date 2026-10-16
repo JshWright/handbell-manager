@@ -1,0 +1,87 @@
+name: Release
+
+# Manually triggered: Actions → Release → Run workflow. Bumps the version in
+# package.json, builds the macOS DMGs, commits + tags the bump on main, and
+# publishes a GitHub Release with the DMGs attached.
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version bump
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: patch
+
+permissions:
+  contents: write
+
+# Two releases racing would both try to bump the same version.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - name: Require main
+        if: github.ref != 'refs/heads/main'
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          echo "::error::Releases must be cut from main (selected: $REF_NAME)."
+          exit 1
+
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm test
+
+      - name: Bump version
+        id: version
+        env:
+          BUMP: ${{ inputs.bump }}
+        run: |
+          npm version "$BUMP" --no-git-tag-version
+          VERSION=$(node -p "require('./package.json').version")
+          if git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null; then
+            echo "::error::Tag v$VERSION already exists."
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      # The runner is Apple Silicon; Electron cross-packages the Intel build.
+      - name: Build DMGs
+        run: npm run make -- --arch=arm64,x64
+
+      # Pushed only after a successful build, so a failed build leaves nothing
+      # behind. --atomic: either both the commit and the tag land, or neither.
+      - name: Commit and tag
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Release v$VERSION"
+          git tag -a "v$VERSION" -m "Release v$VERSION"
+          git push --atomic origin HEAD:main "refs/tags/v$VERSION"
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gh release create "v$VERSION" out/make/*.dmg \
+            --verify-tag \
+            --title "Handbell Manager v$VERSION" \
+            --generate-notes \
+            --notes "Unsigned build: on first launch macOS will block the app. Right-click it and choose Open, or approve it under System Settings → Privacy & Security."
