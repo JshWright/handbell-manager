@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import type { Assignment } from '../core/assigner';
+import type { MeasureNumberMode } from '../core/pdf-color';
 
 export interface NoteInfo { name: string; count: number }
 export interface ParseResult { division: number; notes: NoteInfo[]; distinctCount: number; filename: string }
@@ -23,6 +24,7 @@ export interface ExportPdfArgs {
   colorNotes?: boolean;
   showArrows?: boolean;
   bellsUsedHeader?: boolean;
+  measureNumbers?: MeasureNumberMode;
 }
 export interface PlayerPdfSpec {
   filePath: string;
@@ -33,6 +35,7 @@ export interface PlayerPdfSpec {
   colorNotes?: boolean;
   showArrows?: boolean;
   bellsUsedHeader?: boolean;
+  measureNumbers?: MeasureNumberMode;
 }
 export interface ExportAllPdfArgs {
   players: PlayerPdfSpec[];

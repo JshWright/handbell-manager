@@ -7,6 +7,7 @@
  * All filesystem/IPC work goes through window.bell (see preload.ts).
  */
 
+type MeasureNumberMode = 'none' | 'every' | 'line';
 interface NoteInfo { name: string; count: number }
 interface ParseResult { division: number; notes: NoteInfo[]; distinctCount: number; filename: string }
 interface Assignment {
@@ -34,8 +35,8 @@ const bell = (window as unknown as { bell: {
     playerNames: string[]; minCount: number | null; minGapBeats: number | null; division: number;
     handsPerPlayer: number;
   }): Promise<{ assignment: Assignment } | { error: string }>;
-  exportPdf(args: { filePath: string; playerIdx: number; noteNames: string[]; suggestedName: string; playerName?: string; bellColors?: Record<string, string>; colorNotes?: boolean; showArrows?: boolean; bellsUsedHeader?: boolean }): Promise<{ savedTo?: string; canceled?: boolean; error?: string; needMuseScore?: boolean }>;
-  exportAllPdf(args: { players: { filePath: string; playerIdx: number; noteNames: string[]; playerName?: string; bellColors?: Record<string, string>; colorNotes?: boolean; showArrows?: boolean; bellsUsedHeader?: boolean }[]; suggestedName: string }): Promise<{ savedTo?: string; count?: number; canceled?: boolean; error?: string; needMuseScore?: boolean }>;
+  exportPdf(args: { filePath: string; playerIdx: number; noteNames: string[]; suggestedName: string; playerName?: string; bellColors?: Record<string, string>; colorNotes?: boolean; showArrows?: boolean; bellsUsedHeader?: boolean; measureNumbers?: MeasureNumberMode }): Promise<{ savedTo?: string; canceled?: boolean; error?: string; needMuseScore?: boolean }>;
+  exportAllPdf(args: { players: { filePath: string; playerIdx: number; noteNames: string[]; playerName?: string; bellColors?: Record<string, string>; colorNotes?: boolean; showArrows?: boolean; bellsUsedHeader?: boolean; measureNumbers?: MeasureNumberMode }[]; suggestedName: string }): Promise<{ savedTo?: string; count?: number; canceled?: boolean; error?: string; needMuseScore?: boolean }>;
   exportCsv(args: { assignment: Assignment; suggestedName: string }): Promise<{ savedTo?: string; canceled?: boolean; error?: string }>;
 } }).bell;
 
@@ -55,6 +56,7 @@ const bellColors: Record<string, string> = {};    // bell name -> hex color
 let pdfColorNotes = true;
 let pdfShowArrows = true;
 let pdfBellsUsedHeader = true;
+let pdfMeasureNumbers: MeasureNumberMode = 'every';
 
 // Standard handbell tag colors, keyed by note class (same color in every octave)
 const HANDBELL_COLORS: Record<string, string> = {
@@ -413,6 +415,7 @@ function playerPdfSpec(idx: number, noteNames: string[]) {
     colorNotes: pdfColorNotes,
     showArrows: pdfShowArrows,
     bellsUsedHeader: pdfBellsUsedHeader,
+    measureNumbers: pdfMeasureNumbers,
   };
 }
 
@@ -458,6 +461,9 @@ $('btn-change').addEventListener('click', chooseFile);
 });
 ($('pdf-bells-used') as HTMLInputElement).addEventListener('change', (e) => {
   pdfBellsUsedHeader = (e.target as HTMLInputElement).checked;
+});
+($('pdf-measure-numbers') as HTMLSelectElement).addEventListener('change', (e) => {
+  pdfMeasureNumbers = (e.target as HTMLSelectElement).value as MeasureNumberMode;
 });
 
 $('players-dec').addEventListener('click', () => setPlayers(nPlayers - 1));
