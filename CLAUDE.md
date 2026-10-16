@@ -7,7 +7,7 @@ Standalone macOS Electron app for handbell choir part assignment. Upload a MuseS
 ```bash
 npm start          # dev mode — opens a native Electron window
 npm test           # tests for the parser, assigner, and bells-used strip
-npm run make       # build a distributable .dmg in out/make/
+npm run make       # build a distributable .dmg in out/make/dmg/<arch>/
 ```
 
 First `npm start` downloads the Electron binary (~15s one-time). MuseScore 4 must be installed for PDF export; assignment and CSV export work without it.
@@ -38,7 +38,7 @@ Session state lives in ordinary main-process variables: loaded `.mscz` bytes are
 
 ## Key constraints and gotchas
 
-**Preload path**: both `main.js` and `preload.js` compile to `.vite/build/`. The `BrowserWindow` preload must be `path.join(__dirname, 'preload.js')` — NOT `'../preload/preload.js'`.
+**Preload path**: both `main.cjs` and `preload.cjs` compile to `.vite/build/`. The `BrowserWindow` preload must be `path.join(__dirname, 'preload.cjs')` — NOT `'../preload/preload.cjs'`.
 
 **XML library choice**: `@xmldom/xmldom` (not `fast-xml-parser`) because PDF coloring needs surgical in-place mutation of specific `<Note>` DOM nodes and a faithful round-trip serialization. `XMLSerializer` is used to re-serialize the mutated document.
 
@@ -52,7 +52,9 @@ Session state lives in ordinary main-process variables: loaded `.mscz` bytes are
 
 **Packaging**: `npm run make` produces a `.dmg` (drag-to-Applications) on macOS; the ZIP/deb/rpm makers in `forge.config.ts` are Linux-only and Squirrel is Windows-only. Unsigned builds require recipients to right-click → Open once. Notarization requires an Apple Developer ID; wire in `@electron/notarize` if/when available.
 
-**Releasing**: `.github/workflows/release.yml` is a manual (`workflow_dispatch`) workflow — Actions → Release → Run workflow, pick `patch`/`minor`/`major`. On `macos-latest` (Apple Silicon) it runs `npm ci` + `npm test`, bumps `package.json`/`package-lock.json` with `npm version`, builds `arm64` and `x64` DMGs (two separate `npm run make -- --arch=…` runs — never `--arch=arm64,x64`, which makes the DMGs concurrently and they collide on one temp file), then — only after the build succeeds — pushes a `Release vX.Y.Z` commit and `vX.Y.Z` tag to `main` (atomically) and creates a GitHub Release with the DMGs and auto-generated notes. It refuses to run from any branch but `main` or if the tag already exists. If `main` gains protection that blocks direct pushes, the commit/tag step needs a bypass or a different token. The `postinstall` `patch-package` step (the `@electron/packager` unzip patch in `patches/`) runs as part of `npm ci`.
+**Toolchain pins**: TypeScript is held at 6.x because `typescript-eslint` (peer `typescript <6.1`) doesn't support TypeScript 7's native compiler yet — bump both together once it does. Linting uses an ESLint 10 flat config (`eslint.config.mjs`) with `eslint-plugin-import-x` (the maintained fork; `eslint-plugin-import` has no ESLint 10 support). The Forge 8 Vite plugin emits the main and preload bundles as `.cjs`, hence `"main": ".vite/build/main.cjs"` and the `preload.cjs` path above. npm currently prints advisory `allow-scripts` warnings for `esbuild`, `fsevents`, `unrs-resolver` and `electron-winstaller` install scripts; none are needed (only `macos-alias` and `fs-xattr`, for DMG creation, are listed in `allowScripts`).
+
+**Releasing**: `.github/workflows/release.yml` is a manual (`workflow_dispatch`) workflow — Actions → Release → Run workflow, pick `patch`/`minor`/`major`. On `macos-latest` (Apple Silicon) it runs `npm ci` + `npm test`, bumps `package.json`/`package-lock.json` with `npm version`, builds `arm64` and `x64` DMGs (two separate `npm run make -- --arch=…` runs so the two `hdiutil` runs never overlap — under Forge 7 a combined `--arch=arm64,x64` collided on a shared temp file; Forge 8 writes per-arch folders, `out/make/dmg/<arch>/`, which is what the release step globs), then — only after the build succeeds — pushes a `Release vX.Y.Z` commit and `vX.Y.Z` tag to `main` (atomically) and creates a GitHub Release with the DMGs and auto-generated notes. It refuses to run from any branch but `main` or if the tag already exists. If `main` gains protection that blocks direct pushes, the commit/tag step needs a bypass or a different token.
 
 ## Tests
 

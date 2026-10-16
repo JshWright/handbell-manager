@@ -39,7 +39,7 @@ On first use, macOS Gatekeeper may block MuseScore's command-line tool. Approve 
 npm run make
 ```
 
-This produces a `.dmg` in `out/make/`. Builds are unsigned, so on first launch recipients need to right-click the app and choose Open.
+This produces a `.dmg` in `out/make/dmg/<arch>/`. Builds are unsigned, so on first launch recipients need to right-click the app and choose Open.
 
 ## Tests
 

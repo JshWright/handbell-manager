@@ -18,8 +18,6 @@ if (started) app.quit();
 // In-memory state (lives for the session, cleared on restart)
 const loadedFiles = new Map<string, Uint8Array>();   // filePath -> mscz bytes
 const pdfCache = new Map<string, Buffer>();            // `${filePath}:${playerIdx}` -> pdf bytes
-let currentAssignment: Assignment | null = null;
-let currentFilePath: string | null = null;
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -29,7 +27,7 @@ function createWindow() {
     minHeight: 560,
     backgroundColor: '#ececec',
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
     },
@@ -81,7 +79,6 @@ ipcMain.handle('bell:parse', async (_event, filePath: string) => {
     }
     const division = getDivision(bytes);
     const notes = notesByPitch(events);
-    currentFilePath = filePath;
     return { division, notes, distinctCount: notes.length, filename: path.basename(filePath) };
   } catch (e: unknown) {
     return { error: `Could not read that file: ${(e as Error).message}` };
@@ -113,7 +110,6 @@ ipcMain.handle('bell:assign', async (_event, args: {
       division: args.division,
       handsPerPlayer: args.handsPerPlayer,
     });
-    currentAssignment = assignment;
     pdfCache.clear();
     return { assignment };
   } catch (e: unknown) {

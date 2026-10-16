@@ -5,7 +5,7 @@
  * single-instrument.
  */
 import { unzipSync } from 'fflate';
-import { DOMParser, XMLSerializer, Element as XmlElement, Document as XmlDocument } from '@xmldom/xmldom';
+import { DOMParser, Element as XmlElement, Document as XmlDocument } from '@xmldom/xmldom';
 
 export interface NoteEvent {
   name: string;   // e.g. "C4"
@@ -51,17 +51,6 @@ function findMscxRoot(bytes: Uint8Array): XmlDocument {
   const { data } = getMscxEntry(bytes);
   const xml = new TextDecoder().decode(data);
   return new DOMParser().parseFromString(xml, 'text/xml');
-}
-
-function findFirst(node: XmlDocument | XmlElement, tagPath: string): XmlElement | null {
-  const tags = tagPath.split('/');
-  let current: XmlDocument | XmlElement = node;
-  for (const tag of tags) {
-    const found = getElementsByTagName(current, tag)[0];
-    if (!found) return null;
-    current = found;
-  }
-  return current as XmlElement;
 }
 
 function getElementsByTagName(node: XmlDocument | XmlElement, tag: string): XmlElement[] {
