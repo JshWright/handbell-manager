@@ -7,7 +7,7 @@ import { PDFDocument } from 'pdf-lib';
 
 import { parseNotes, getDivision, notesByPitch, debugParse } from '../core/mscz-parser';
 import { assignPlayers, Assignment } from '../core/assigner';
-import { colorPlayerScore } from '../core/pdf-color';
+import { colorPlayerScore, MeasureNumberMode } from '../core/pdf-color';
 import { buildBellsUsedScore } from '../core/bells-used';
 import { renderPdf, renderTrimmedPng } from './mscore';
 import { addBellsUsedBand } from './pdf-compose';
@@ -126,6 +126,7 @@ interface PlayerPdfSpec {
   colorNotes?: boolean;
   showArrows?: boolean;
   bellsUsedHeader?: boolean;   // default true
+  measureNumbers?: MeasureNumberMode;   // default 'every'
 }
 
 type PlayerPdfResult =
@@ -138,7 +139,7 @@ async function renderPlayerPdf(spec: PlayerPdfSpec): Promise<PlayerPdfResult> {
     ? Object.keys(spec.bellColors).sort().map(k => `${k}:${spec.bellColors![k]}`).join(',')
     : '';
   const header = spec.bellsUsedHeader !== false;
-  const cacheKey = `${spec.filePath}:${spec.playerIdx}:${spec.playerName ?? ''}:${colorSig}:${spec.colorNotes ?? true}:${spec.showArrows ?? true}:${header}`;
+  const cacheKey = `${spec.filePath}:${spec.playerIdx}:${spec.playerName ?? ''}:${colorSig}:${spec.colorNotes ?? true}:${spec.showArrows ?? true}:${spec.measureNumbers ?? 'every'}:${header}`;
   const cached = pdfCache.get(cacheKey);
   if (cached) return { ok: true, pdfBytes: cached };
 
@@ -152,6 +153,7 @@ async function renderPlayerPdf(spec: PlayerPdfSpec): Promise<PlayerPdfResult> {
     bellColors: spec.bellColors,
     colorNotes: spec.colorNotes,
     showArrows: spec.showArrows,
+    measureNumbers: spec.measureNumbers,
   });
   const rendered = renderPdf(colored.mscz);
   if (rendered.ok === false) {

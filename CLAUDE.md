@@ -29,7 +29,7 @@ Session state lives in ordinary main-process variables: loaded `.mscz` bytes are
 |------|--------------|
 | `src/core/mscz-parser.ts` | Unzip (fflate) → XML walk (@xmldom/xmldom) → `NoteEvent[]`. Exposes `parseNotes`, `parseNotesWithElements`, `getDivision`, `notesByPitch`. |
 | `src/core/assigner.ts` | `buildConflictGraph` (with optional `minGapTicks`), balanced-contiguous-partition DP, conflict repair, boundary perturbation, min-count bump, `assignPlayers`. Returns `Assignment`. |
-| `src/core/pdf-color.ts` | `colorPlayerScore(msczBytes, noteNames)` — adds `<color>` tags to matching `<Note>` elements, rezips with fflate. Returns `{ mscz, orderedNames, colorByName }` so the header strip can reuse the exact same colors. `resolveBellColors(orderedNames, bellColors?)` maps each bell to an RGB (hex override, else auto HSV by pitch order). |
+| `src/core/pdf-color.ts` | `colorPlayerScore(msczBytes, noteNames, options)` — adds `<color>` tags to matching `<Note>` elements, sets the player-name subtitle and the measure-number style (`measureNumbers` option: `'none' | 'every' | 'line'`, default `'every'`), rezips with fflate. Returns `{ mscz, orderedNames, colorByName }` so the header strip can reuse the exact same colors. `resolveBellColors(orderedNames, bellColors?)` maps each bell to an RGB (hex override, else auto HSV by pitch order). |
 | `src/core/bells-used.ts` | `buildBellsUsedScore(orderedNames, colorByName)` — writes a minimal single-staff `.mscz`: one stemless colored notehead per bell, low→high, on one wide line. `nameToPitchTpc(name)` converts `"F#5"` → MuseScore `{ midi, tpc }`. |
 | `src/core/rng.ts` | Mulberry32 seedable PRNG — `SeededRandom(seed)` with `.next()`, `.randint(n)`, `.choice(arr)`, `.shuffle(arr)`. |
 | `src/main/mscore.ts` | `findMscoreBinary()` checks PATH then hardcoded candidates; `renderPdf(coloredMsczBytes)` spawns `mscore -o out.pdf in.mscz`, returns `PdfResult`. `renderTrimmedPng(msczBytes)` spawns `mscore --trim-image N -r DPI -o out.png` for the tightly-cropped header strip. |
@@ -50,6 +50,8 @@ Session state lives in ordinary main-process variables: loaded `.mscz` bytes are
 
 **"Bells Used" header — why composite, not in-score**: MuseScore 4's CLI does **not** render a manually-authored frame `<Image>` (injecting one into the title `VBox` is silently dropped), so the header can't be embedded in the score itself. Instead it's a second render: `buildBellsUsedScore` → `renderTrimmedPng` (a tightly-cropped strip) → `addBellsUsedBand` composites it onto the top of page 1 with `pdf-lib` (grow page height, redraw original below, draw caption + strip above). The strip is **always colored** (it's a color key), independent of the "Color notes" toggle, and reuses `colorByName` from `colorPlayerScore` so its colors match the score exactly. Costs one extra `mscore` invocation per player; strip failure falls back to the un-banded score.
 
+**Measure numbers**: the PDF-options "Measure numbers" select (None / Every measure / Every line; default Every measure) maps to the `measureNumbers` mode (`'none' | 'every' | 'line'`) on `colorPlayerScore`, which writes MuseScore style keys into the score's `<Style>` block (created after `<Division>` if the score has none). `every` → `showMeasureNumber=1`, `measureNumberSystem=0`, `measureNumberInterval=1`; `line` → `showMeasureNumber=1`, `measureNumberSystem=1` (first measure of each system); `none` → `showMeasureNumber=0`. Every mode is written explicitly, so the choice also overrides a source score that already shows or hides numbers. Measure 1 is never numbered in the visible modes (MuseScore's `showMeasureNumberOne` default), so with `line` the first system has no number. The mode is part of the PDF cache key. The Bells Used strip score is separate and unaffected.
+
 **Packaging**: `npm run make` produces a `.dmg` (drag-to-Applications) on macOS; the ZIP/deb/rpm makers in `forge.config.ts` are Linux-only and Squirrel is Windows-only. Unsigned builds require recipients to right-click → Open once. Notarization requires an Apple Developer ID; wire in `@electron/notarize` if/when available.
 
 **Toolchain pins**: TypeScript is held at 6.x because `typescript-eslint` (peer `typescript <6.1`) doesn't support TypeScript 7's native compiler yet — bump both together once it does. Linting uses an ESLint 10 flat config (`eslint.config.mjs`) with `eslint-plugin-import-x` (the maintained fork; `eslint-plugin-import` has no ESLint 10 support). The Forge 8 Vite plugin emits the main and preload bundles as `.cjs`, hence `"main": ".vite/build/main.cjs"` and the `preload.cjs` path above. npm currently prints advisory `allow-scripts` warnings for `esbuild`, `fsevents`, `unrs-resolver` and `electron-winstaller` install scripts; none are needed (only `macos-alias` and `fs-xattr`, for DMG creation, are listed in `allowScripts`).
@@ -58,12 +60,13 @@ Session state lives in ordinary main-process variables: loaded `.mscz` bytes are
 
 ## Tests
 
-`test/core.test.mjs` compiles `src/core/` via esbuild in-memory and runs 28 checks:
+`test/core.test.mjs` compiles `src/core/` via esbuild in-memory and runs 36 checks:
 
 - Parser: division, event count, every note and its timing vs. an independent oracle (`test/fixtures/generate-sample.mjs`), all 22 distinct note names, enharmonic merge
 - Assigner: all bells assigned exactly once, conflict-freedom (no gap and 0.5-beat gap), pitchCost and spread at 10 players (fixed seed), pins honored, min-count floor met, two-hand splittability
 - Error messages: too many players, negative gap, infeasible min-count
 - Bells-used strip: `nameToPitchTpc` conversions, and a built strip round-trips through the parser (one note per bell, ascending order, every note colored and stemless)
+- Measure numbers: `every` is the default (interval 1, not system-start), `line` sets system-start numbering, `none` writes `showMeasureNumber=0`, an existing `<Style>` block is reused with its entries intact, a source score that hides them is overridden, and the score still parses to the same notes
 
 `test/fixtures/Sample.mscz` is a small synthetic two-staff score (original music, no third-party content) generated by `test/fixtures/generate-sample.mjs`, which also exports the exact expected note events. After editing the music in that script, regenerate with `node test/fixtures/generate-sample.mjs` and update the baselines in the test.
 

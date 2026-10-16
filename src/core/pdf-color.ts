@@ -117,11 +117,56 @@ function hexToRgb(hex: string): [number, number, number] {
   return [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff];
 }
 
+/** Where measure numbers appear: nowhere, above every measure, or on the first measure of each system (line). */
+export type MeasureNumberMode = 'none' | 'every' | 'line';
+
+/**
+ * Set the score's measure-number style via its <Style> block. Every mode is
+ * written explicitly (including 'none'), so the choice wins over whatever the
+ * source score had configured. Measure 1 stays unnumbered in the visible modes
+ * (MuseScore's showMeasureNumberOne default).
+ */
+function setMeasureNumbers(doc: XmlDocument, mode: MeasureNumberMode): void {
+  let score: XmlElement | null = null;
+  for (let n = doc.documentElement?.firstChild ?? null; n; n = n.nextSibling) {
+    if (n.nodeType === 1 && (n as XmlElement).tagName === 'Score') { score = n as XmlElement; break; }
+  }
+  if (!score) return;
+
+  const childNamed = (parent: XmlElement, tag: string): XmlElement | null => {
+    for (let n = parent.firstChild; n; n = n.nextSibling) {
+      if (n.nodeType === 1 && (n as XmlElement).tagName === tag) return n as XmlElement;
+    }
+    return null;
+  };
+
+  let style = childNamed(score, 'Style');
+  if (!style) {
+    style = doc.createElement('Style');
+    const division = childNamed(score, 'Division');
+    score.insertBefore(style, division ? division.nextSibling : score.firstChild);
+  }
+
+  const setStyle = (tag: string, value: string) => {
+    const el = childNamed(style, tag) ?? style.appendChild(doc.createElement(tag)) as XmlElement;
+    el.textContent = value;
+  };
+
+  setStyle('showMeasureNumber', mode === 'none' ? '0' : '1');
+  if (mode === 'every') {
+    setStyle('measureNumberSystem', '0');     // "every N measures", not "system start"
+    setStyle('measureNumberInterval', '1');
+  } else if (mode === 'line') {
+    setStyle('measureNumberSystem', '1');     // first measure of every system
+  }
+}
+
 export interface ColorOptions {
   playerName?: string;
   bellColors?: Record<string, string>;
-  colorNotes?: boolean;   // default true
-  showArrows?: boolean;   // default true
+  colorNotes?: boolean;     // default true
+  showArrows?: boolean;     // default true
+  measureNumbers?: MeasureNumberMode; // default 'every'
 }
 
 export interface ColoredScore {
@@ -135,7 +180,7 @@ export function colorPlayerScore(
   noteNames: Set<string>,
   options?: ColorOptions,
 ): ColoredScore {
-  const { playerName, bellColors, colorNotes = true, showArrows = true } = options ?? {};
+  const { playerName, bellColors, colorNotes = true, showArrows = true, measureNumbers = 'every' } = options ?? {};
   const { doc, allFiles, mscxName, pairs } = parseNotesWithElements(msczBytes);
 
   // Sort by midi so colors are consistent (lowest bell = first color)
@@ -179,6 +224,7 @@ export function colorPlayerScore(
   }
 
   if (playerName) injectPlayerName(doc, playerName);
+  setMeasureNumbers(doc, measureNumbers);
 
   const serializer = new XMLSerializer();
   const newMscx = serializer.serializeToString(doc);

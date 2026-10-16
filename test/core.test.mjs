@@ -1,5 +1,5 @@
 /**
- * Core tests: parser, assigner, and bells-used strip.
+ * Core tests: parser, assigner, bells-used strip, and PDF score coloring.
  * Run: npm test  (or: node test/core.test.mjs)
  * Requires: npm run build (or that ts-node / compiled output exists).
  * We use the compiled .vite output from `npm start` / the build step.
@@ -23,6 +23,7 @@ buildSync({
     join(root, 'src/core/mscz-parser.ts'),
     join(root, 'src/core/assigner.ts'),
     join(root, 'src/core/bells-used.ts'),
+    join(root, 'src/core/pdf-color.ts'),
   ],
   bundle: true,
   format: 'esm',
@@ -35,6 +36,7 @@ buildSync({
 const { parseNotes, getDivision } = await import('./.build/mscz-parser.js');
 const { assignPlayers, buildConflictGraph } = await import('./.build/assigner.js');
 const { buildBellsUsedScore, nameToPitchTpc } = await import('./.build/bells-used.js');
+const { colorPlayerScore } = await import('./.build/pdf-color.js');
 
 const msczBytes = new Uint8Array(readFileSync(join(__dir, 'fixtures/Sample.mscz')));
 
@@ -199,6 +201,49 @@ const stripXml = new TextDecoder().decode(
 );
 check('strip: every note is colored', (stripXml.match(/<color /g) || []).length, stripNames.length);
 check('strip: noteheads are stemless', (stripXml.match(/<noStem>1<\/noStem>/g) || []).length, stripNames.length);
+
+// ── Measure numbers ─────────────────────────────────────────────────────────
+// The toggle writes MuseScore style keys into the score's <Style> block; the
+// PDF itself is rendered by mscore, so we check the XML it will be handed.
+const { unzipSync } = await import('fflate');
+const scoreXml = (mscz) => {
+  const files = unzipSync(mscz);
+  return new TextDecoder().decode(files[Object.keys(files).find(k => k.endsWith('.mscx'))]);
+};
+const styleTag = (xml, tag) => [...xml.matchAll(new RegExp(`<${tag}>([^<]*)</${tag}>`, 'g'))].map(m => m[1]);
+const sampleBells = new Set(['C4', 'G4']);
+
+const mnKeys = (xml) => [styleTag(xml, 'showMeasureNumber'), styleTag(xml, 'measureNumberInterval'), styleTag(xml, 'measureNumberSystem')];
+
+const mnDefault = scoreXml(colorPlayerScore(msczBytes, sampleBells).mscz);
+check('measure numbers: every measure by default (interval 1, not system-start)', mnKeys(mnDefault), [['1'], ['1'], ['0']]);
+
+const mnEvery = scoreXml(colorPlayerScore(msczBytes, sampleBells, { measureNumbers: 'every' }).mscz);
+check('measure numbers: "every" matches the default', mnKeys(mnEvery), mnKeys(mnDefault));
+
+const mnLine = scoreXml(colorPlayerScore(msczBytes, sampleBells, { measureNumbers: 'line' }).mscz);
+check('measure numbers: "line" shows numbers at system start', [styleTag(mnLine, 'showMeasureNumber'), styleTag(mnLine, 'measureNumberSystem')], [['1'], ['1']]);
+
+const mnNone = scoreXml(colorPlayerScore(msczBytes, sampleBells, { measureNumbers: 'none' }).mscz);
+check('measure numbers: "none" writes showMeasureNumber=0', styleTag(mnNone, 'showMeasureNumber'), ['0']);
+
+// A score that already has a <Style> block (the strip score hides nothing, but
+// has its own page size): the existing entries survive and keys aren't duplicated.
+const mnStyled = scoreXml(colorPlayerScore(stripMscz, new Set(stripNames), { measureNumbers: 'every' }).mscz);
+check('measure numbers: existing <Style> reused, not duplicated', (mnStyled.match(/<Style>/g) || []).length, 1);
+check('measure numbers: existing style entries preserved', styleTag(mnStyled, 'spatium'), ['1.6']);
+check('measure numbers: score still parses with the same notes',
+  parseNotes(colorPlayerScore(msczBytes, sampleBells).mscz).length, EXPECTED_COUNT);
+
+// An existing explicit "hide measure numbers" in the source score is overridden both ways.
+const hidden = unzipSync(stripMscz);
+const hiddenName = Object.keys(hidden).find(k => k.endsWith('.mscx'));
+hidden[hiddenName] = new TextEncoder().encode(
+  new TextDecoder().decode(hidden[hiddenName]).replace('<Style>', '<Style>\n<showMeasureNumber>0</showMeasureNumber>'),
+);
+const hiddenMscz = (await import('fflate')).zipSync(hidden);
+check('measure numbers: source "hidden" overridden by a visible mode',
+  styleTag(scoreXml(colorPlayerScore(hiddenMscz, new Set(stripNames), { measureNumbers: 'line' }).mscz), 'showMeasureNumber'), ['1']);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail > 0) process.exit(1);
