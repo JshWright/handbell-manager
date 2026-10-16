@@ -1,7 +1,7 @@
 {
   "name": "handbell-manager",
   "productName": "Handbell Manager",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Handbell part-assignment tool — upload a MuseScore file, get conflict-free player assignments",
   "main": ".vite/build/main.cjs",
   "private": true,
